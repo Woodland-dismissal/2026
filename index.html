@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="app-version" content="1.0.4" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Woodland Elementary — Dismissal Lookup</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green: #1D9E75;
+      --green-bg: #E1F5EE;
+      --green-border: #5DCAA5;
+      --green-dark: #085041;
+      --green-mid: #0F6E56;
+      --blue: #378ADD;
+      --blue-bg: #E6F1FB;
+      --blue-border: #85B7EB;
+      --blue-dark: #0C447C;
+      --blue-mid: #185FA5;
+      --red: #E24B4A;
+      --bg: #F7F7F8;
+      --surface: #FFFFFF;
+      --border: #E4E4E7;
+      --text: #18181B;
+      --muted: #71717A;
+      --radius: 10px;
+      --radius-sm: 6px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0.75rem 1rem 3.5rem;
+    }
+
+    .dual {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      max-width: 1200px;
+      margin: 0 auto 1.25rem;
+    }
+
+    .station {
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      min-height: 80vh;
+    }
+
+    .station-header {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding-bottom: 10px;
+      border-bottom: 0.5px solid var(--border);
+    }
+    .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+    .station-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .tag-input {
+      width: 100%;
+      font-size: 36px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-align: center;
+      height: 68px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg);
+      color: var(--text);
+      outline: none;
+    }
+    .tag-input:focus { border-color: #A1A1AA; box-shadow: 0 0 0 3px rgba(0,0,0,0.06); }
+
+    .lookup-btn {
+      width: 100%;
+      height: 48px;
+      font-size: 16px;
+      font-weight: 500;
+      border: none;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+
+    .history-empty {
+      font-size: 12px;
+      color: var(--muted);
+      text-align: center;
+      padding: 8px 0;
+    }
+
+    .entry-found {
+      border-radius: var(--radius-sm);
+      padding: 5px 9px;
+    }
+    .entry-found .fam-name { font-weight: 600; }
+    .entry-found .student-list {
+      margin-top: 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .student-row {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      background: rgba(255,255,255,0.6);
+      border-radius: 5px;
+      padding: 5px 10px;
+      font-size: 28px;
+      font-weight: 500;
+    }
+    .student-grade { margin-left: auto; font-size: 18px; font-weight: 400; }
+
+    .entry-notfound {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--muted);
+      padding: 3px 10px;
+      background: var(--bg);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-sm);
+    }
+    .entry-notfound .x { color: var(--red); font-weight: 600; }
+
+    /* Manage section */
+    .manage-wrap { max-width: 1200px; margin: 0 auto; }
+    .manage-toggle {
+      background: none; border: none; font-size: 12px; color: var(--muted);
+      cursor: pointer; display: flex; align-items: center; gap: 5px;
+      margin-bottom: 10px; padding: 0;
+    }
+    .manage-toggle:hover { color: var(--text); }
+    .manage-box {
+      background: var(--surface); border: 0.5px solid var(--border);
+      border-radius: var(--radius); padding: 1.1rem;
+    }
+    .manage-title {
+      font-size: 12px; font-weight: 600; color: var(--muted);
+      letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 10px;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th {
+      text-align: left; font-size: 11px; color: var(--muted); font-weight: 500;
+      padding: 4px 8px; border-bottom: 0.5px solid var(--border);
+    }
+    td { padding: 7px 8px; border-bottom: 0.5px solid var(--border); vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    .del-btn {
+      background: none; border: none; color: var(--muted); cursor: pointer;
+      font-size: 15px; padding: 2px 4px; border-radius: 4px;
+    }
+    .del-btn:hover { color: var(--red); background: #FCEAEA; }
+    .add-grid { display: grid; grid-template-columns: 80px 1fr; gap: 6px; margin-bottom: 6px; }
+    input[type="text"] {
+      height: 32px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+      padding: 0 8px; font-size: 13px; background: var(--bg); color: var(--text);
+      outline: none; width: 100%;
+    }
+    input[type="text"]:focus { border-color: #A1A1AA; }
+    .prow { display: grid; grid-template-columns: 1fr 80px 28px; gap: 5px; margin-bottom: 4px; align-items: center; }
+    .prow input { height: 30px; font-size: 12px; }
+    .btn-sm {
+      height: 30px; padding: 0 10px; font-size: 12px; font-weight: 500;
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      background: var(--surface); cursor: pointer; color: var(--text);
+    }
+    .btn-sm:hover { background: var(--bg); }
+    .btn-primary {
+      height: 34px; padding: 0 14px; font-size: 13px; font-weight: 500;
+      border: none; border-radius: var(--radius-sm); background: var(--text);
+      color: #fff; cursor: pointer;
+    }
+    .btn-primary:hover { opacity: 0.85; }
+    .icon-x { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 14px; padding: 2px; border-radius: 3px; }
+    .icon-x:hover { color: var(--red); }
+    .toast { font-size: 12px; color: var(--green-mid); margin-left: 8px; opacity: 0; transition: opacity 0.3s; }
+    .toast.show { opacity: 1; }
+    .divider { height: 0.5px; background: var(--border); margin: 14px 0; }
+
+    @media (max-width: 540px) { .dual { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+
+<div style="position:fixed;bottom:0;left:0;right:0;background:#2D2D2D;color:#fff;display:flex;align-items:center;justify-content:space-between;padding:8px 16px;font-size:13px;font-family:Arial,sans-serif;z-index:999;">
+  <span id="sync-status" style="color:#aaa;">Loading student data…</span>
+  <span id="live-clock" style="color:#ccc;font-size:12px;"></span>
+  <button onclick="clearAll()" style="padding:5px 16px;font-size:13px;border-radius:5px;border:none;background:#555;color:#fff;cursor:pointer;">Clear All</button>
+</div>
+
+<div class="dual">
+  <div class="station" id="station-wood">
+    <div class="station-header">
+      <div class="dot" style="background:var(--blue)"></div>
+      <span class="station-label">Woodland Park</span>
+    </div>
+    <input class="tag-input" id="input-wood" type="text" inputmode="numeric" maxlength="6" placeholder="Tag #"
+      onkeydown="if(event.key==='Enter') doLookup('wood')" />
+    <button class="lookup-btn" style="background:var(--blue)" onclick="doLookup('wood')">Look up</button>
+    <div id="history-wood"><p class="history-empty">Enter a tag number to begin dismissal</p></div>
+  </div>
+
+  <div class="station" id="station-main">
+    <div class="station-header">
+      <div class="dot" style="background:var(--green)"></div>
+      <span class="station-label">Main Circle</span>
+    </div>
+    <input class="tag-input" id="input-main" type="text" inputmode="numeric" maxlength="6" placeholder="Tag #"
+      onkeydown="if(event.key==='Enter') doLookup('main')" />
+    <button class="lookup-btn" style="background:var(--green)" onclick="doLookup('main')">Look up</button>
+    <div id="history-main"><p class="history-empty">Enter a tag number to begin dismissal</p></div>
+  </div>
+</div>
+
+<div class="manage-wrap">
+  <button class="manage-toggle" onclick="toggleManage()" id="manage-toggle-btn" style="display:none">⚙ <span id="manage-lbl">Manage families</span></button>
+  <div id="manage-box" style="display:none" class="manage-box">
+    <div class="manage-title">Families on file <span id="fam-count" style="font-weight:400;color:var(--muted)"></span></div>
+    <div style="overflow-x:auto;margin-bottom:14px">
+      <table>
+        <colgroup><col style="width:60px"><col style="width:110px"><col><col style="width:30px"></colgroup>
+        <thead><tr><th>Tag #</th><th>Family</th><th>Students</th><th></th></tr></thead>
+        <tbody id="fam-tbody"></tbody>
+      </table>
+    </div>
+    <div class="divider"></div>
+    <div class="manage-title" style="margin-top:0">Add a new family</div>
+    <div class="add-grid">
+      <input type="text" id="new-tag" placeholder="Tag #" inputmode="numeric" maxlength="6" />
+      <input type="text" id="new-family" placeholder="Family last name" />
+    </div>
+    <div id="pending-students"></div>
+    <button class="btn-sm" onclick="addPending()" style="margin-top:5px">+ Add student</button>
+    <div style="display:flex;align-items:center;margin-top:10px;gap:8px">
+      <button class="btn-primary" onclick="saveFamily()">Save family</button>
+      <span class="toast" id="save-toast">✓ Saved</span>
+    </div>
+  </div>
+</div>
+
+<script>
+const SHEET_URLS = {
+  "Kindergarten": "https://docs.google.com/spreadsheets/d/e/2PACX-1vShlQCR85YfOZmCdH-clEhV4BeOEiX7Abq94IsB67x5NVJZ9rEXDEj6bTUJ952--Hi8HA2v0OhRlll_/pub?gid=0&single=true&output=csv",
+  "First":        "https://docs.google.com/spreadsheets/d/e/2PACX-1vShlQCR85YfOZmCdH-clEhV4BeOEiX7Abq94IsB67x5NVJZ9rEXDEj6bTUJ952--Hi8HA2v0OhRlll_/pub?gid=1459207936&single=true&output=csv",
+  "Second":       "https://docs.google.com/spreadsheets/d/e/2PACX-1vShlQCR85YfOZmCdH-clEhV4BeOEiX7Abq94IsB67x5NVJZ9rEXDEj6bTUJ952--Hi8HA2v0OhRlll_/pub?gid=682968111&single=true&output=csv",
+  "Third":        "https://docs.google.com/spreadsheets/d/e/2PACX-1vShlQCR85YfOZmCdH-clEhV4BeOEiX7Abq94IsB67x5NVJZ9rEXDEj6bTUJ952--Hi8HA2v0OhRlll_/pub?gid=1763797640&single=true&output=csv",
+  "Fourth":       "https://docs.google.com/spreadsheets/d/e/2PACX-1vShlQCR85YfOZmCdH-clEhV4BeOEiX7Abq94IsB67x5NVJZ9rEXDEj6bTUJ952--Hi8HA2v0OhRlll_/pub?gid=905143739&single=true&output=csv"
+};
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwUmiTQS915k8asWsR6UkMwr9gR8TGPD7CUe_hiuI_cChMekqHlE0DQ6B1jWLpeGaXl/exec";
+const LOCAL_KEY = "woodland-dismissal-override";
+
+let families = {};
+let overrides = {};
+let histories = { main: [], wood: [] };
+let pendingStudents = [];
+let lastLiveRow = 0;
+
+// Track tags entered locally on THIS device so poll doesn't reorder them
+let localEntries = { main: new Map(), wood: new Map() };
+
+// ── CSV loading ───────────────────────────────────────────────────────────────
+function parseCSV(text) {
+  const lines = text.trim().split("\n").map(l => l.split(",").map(c => c.trim().replace(/^"|"$/g, "")));
+  const headers = lines[0].map(h => h.toLowerCase());
+  const tagIdx = headers.indexOf("tag");
+  const famIdx = headers.indexOf("family");
+  const stuIdx = headers.indexOf("student");
+  const gradeIdx = headers.indexOf("grade");
+  const result = {};
+  for (let i = 1; i < lines.length; i++) {
+    const row = lines[i];
+    const tag = row[tagIdx];
+    if (!tag) continue;
+    if (!result[tag]) result[tag] = { name: row[famIdx] || "", students: [] };
+    if (row[stuIdx]) result[tag].students.push({ name: row[stuIdx], grade: gradeIdx >= 0 ? row[gradeIdx] : "" });
+  }
+  return result;
+}
+
+async function loadSheet() {
+  const status = document.getElementById("sync-status");
+  try {
+    const merged = {};
+    await Promise.all(Object.entries(SHEET_URLS).map(async ([grade, url]) => {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 10000);
+        const res = await fetch(url + "&t=" + Date.now(), { signal: controller.signal });
+        clearTimeout(timeout);
+        if (!res.ok) return;
+        const text = await res.text();
+        const data = parseCSV(text);
+        for (const [tag, fam] of Object.entries(data)) {
+          if (!merged[tag]) merged[tag] = { name: fam.name, students: [] };
+          merged[tag].students.push(...fam.students);
+        }
+      } catch(err) {
+        console.warn("Skipped tab " + grade + ":", err.message);
+      }
+    }));
+    families = merged;
+    loadOverrides();
+    Object.assign(families, overrides.added || {});
+    (overrides.deleted || []).forEach(t => delete families[t]);
+    const total = Object.keys(families).length;
+    status.textContent = "✓ All grades loaded · " + total + " families · " + new Date().toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"});
+    status.style.color = "#5DCAA5";
+    renderManage();
+  } catch(e) {
+    status.textContent = "⚠ Could not load sheet — using cached data";
+    status.style.color = "#E24B4A";
+    loadOverrides();
+    Object.assign(families, overrides.added || {});
+    (overrides.deleted || []).forEach(t => delete families[t]);
+    renderManage();
+  }
+}
+
+function loadOverrides() {
+  try { overrides = JSON.parse(localStorage.getItem(LOCAL_KEY) || "{}"); } catch { overrides = {}; }
+  if (!overrides.added) overrides.added = {};
+  if (!overrides.deleted) overrides.deleted = [];
+}
+
+function saveOverrides() {
+  localStorage.setItem(LOCAL_KEY, JSON.stringify(overrides));
+}
+
+// ── Clear All ─────────────────────────────────────────────────────────────────
+async function clearAll() {
+  const pwd = prompt("Enter password to clear all lookups:");
+  if (pwd === null) return;
+  if (pwd !== "27979") { alert("Incorrect password."); return; }
+  await fetch(SCRIPT_URL + "?action=clear");
+  lastLiveRow = 0;
+  histories = { main: [], wood: [] };
+  localEntries = { main: new Map(), wood: new Map() };
+  renderHistory("main");
+  renderHistory("wood");
+}
+
+// ── Render history ────────────────────────────────────────────────────────────
+function renderHistory(station) {
+  const isTeal = station === "main";
+  const bannerBg = isTeal ? "var(--green-bg)" : "var(--blue-bg)";
+  const bannerBorder = isTeal ? "var(--green-border)" : "var(--blue-border)";
+  const namColor = isTeal ? "var(--green-dark)" : "var(--blue-dark)";
+  const subColor = isTeal ? "var(--green-mid)" : "var(--blue-mid)";
+
+  const hist = histories[station];
+  const container = document.getElementById("history-" + station);
+
+  if (!hist.length) {
+    container.innerHTML = '<p class="history-empty">Enter a tag number to begin dismissal</p>';
+    return;
+  }
+
+  container.innerHTML = hist.map((entry) => {
+    if (!entry.found) {
+      return `<div class="entry-notfound"><span class="x">✕</span> Tag #${entry.tag} not found</div>`;
+    }
+    const students = entry.fam.students.map(s => `
+      <div class="student-row">
+        <span>👤</span> ${s.name}
+        ${s.grade ? `<span class="student-grade" style="color:${subColor}">${s.grade}</span>` : ""}
+      </div>`).join("");
+    return `<div class="entry-found" style="background:${bannerBg};border:0.5px solid ${bannerBorder}">
+      <div class="fam-name" style="font-size:22px;font-weight:600;color:${namColor}">${entry.fam.name} family &nbsp;·&nbsp; #${entry.tag}</div>
+      ${students ? `<div class="student-list">${students}</div>` : ""}
+    </div>`;
+  }).join("");
+}
+
+// ── Lookup ────────────────────────────────────────────────────────────────────
+function doLookup(station) {
+  const input = document.getElementById("input-" + station);
+  const v = input.value.trim();
+  if (!v) return;
+  const fam = families[v];
+  const entry = fam ? { found: true, fam: fam, tag: v } : { found: false, tag: v };
+  // Move to top, removing any existing entry for this tag
+  histories[station] = [entry].concat(histories[station].filter(h => h.tag !== v)).slice(0, 10);
+  // Mark as locally entered with timestamp so poll doesn't reorder it within 10 seconds
+  localEntries[station].set(v, Date.now());
+  input.value = "";
+  input.focus();
+  renderHistory(station);
+  if (fam) {
+    const stationName = station === "main" ? "Main Circle" : "Woodland Park";
+    postLookup(stationName, v, fam);
+  }
+}
+
+// ── Post to Live sheet ────────────────────────────────────────────────────────
+async function postLookup(station, tag, fam) {
+  try {
+    const students = fam.students.map(s => s.name + (s.grade ? " (" + s.grade + ")" : "")).join(", ");
+    const params = new URLSearchParams({ action: "post", station, tag, family: fam.name, students, time: new Date().toISOString() });
+    await fetch(SCRIPT_URL + "?" + params.toString());
+  } catch(e) { console.error("postLookup error:", e); }
+}
+
+// ── Poll Live sheet ───────────────────────────────────────────────────────────
+async function pollLive() {
+  try {
+    const res = await fetch(SCRIPT_URL + "?action=read&t=" + Date.now());
+    if (!res.ok) return;
+    const rows = await res.json();
+    if (!Array.isArray(rows)) return;
+
+    // Sheet was cleared — reset everything
+    if (rows.length === 0 && lastLiveRow > 0) {
+      lastLiveRow = 0;
+      histories = { main: [], wood: [] };
+      localEntries = { main: new Map(), wood: new Map() };
+      renderHistory("main");
+      renderHistory("wood");
+      return;
+    }
+
+    // Sheet shrank — reset row counter
+    if (rows.length < lastLiveRow) lastLiveRow = 0;
+
+    if (rows.length <= lastLiveRow) return;
+
+    const newRows = rows.slice(lastLiveRow);
+    lastLiveRow = rows.length;
+
+    newRows.forEach(function(row) {
+      const station = row.station;
+      const tag = String(row.tag);
+      const family = row.family;
+      const studentsStr = row.students;
+      if (!tag || !family) return;
+
+      const stationKey = station === "Main Circle" ? "main" : "wood";
+
+      // Skip if this device already entered this tag — it's already at the top
+      if (localEntries[stationKey].has(tag)) return;
+
+      const students = studentsStr ? studentsStr.split(",").map(function(s) {
+        const trimmed = s.trim();
+        const parenIdx = trimmed.lastIndexOf("(");
+        if (parenIdx > -1 && trimmed.endsWith(")")) {
+          return { name: trimmed.substring(0, parenIdx).trim(), grade: trimmed.substring(parenIdx+1, trimmed.length-1) };
+        }
+        return { name: trimmed, grade: "" };
+      }) : [];
+
+      const fam = { name: family, students };
+      const entry = { found: true, fam, tag };
+      // Only reorder from poll if this tag wasn't entered locally in the last 10 seconds
+      const localTime = localEntries[stationKey].get(tag);
+      const isRecent = localTime && (Date.now() - localTime < 10000);
+      if (!isRecent) {
+        histories[stationKey] = [entry].concat(histories[stationKey].filter(h => h.tag !== tag)).slice(0, 10);
+        renderHistory(stationKey);
+      }
+    });
+  } catch(e) { console.error("pollLive error:", e); }
+}
+
+// ── Manage families ───────────────────────────────────────────────────────────
+function toggleManage() {
+  const box = document.getElementById("manage-box");
+  const open = box.style.display === "none";
+  box.style.display = open ? "" : "none";
+  document.getElementById("manage-lbl").textContent = open ? "Hide family manager" : "Manage families";
+  if (open) renderManage();
+}
+
+function renderManage() {
+  const sorted = Object.keys(families).sort((a, b) => Number(a) - Number(b));
+  document.getElementById("fam-count").textContent = "· " + sorted.length + " saved";
+  const tbody = document.getElementById("fam-tbody");
+  if (!sorted.length) {
+    tbody.innerHTML = '<tr><td colspan="4" style="color:var(--muted);font-size:13px;padding:8px">No families yet.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = sorted.map(k => {
+    const f = families[k];
+    const names = f.students.map(s => `<div>${s.name}${s.grade ? ` <span style="color:var(--muted)">(${s.grade})</span>` : ""}</div>`).join("") || '<span style="color:var(--muted)">—</span>';
+    return `<tr>
+      <td style="font-weight:500">${k}</td>
+      <td style="font-weight:500">${f.name}</td>
+      <td>${names}</td>
+      <td><button class="del-btn" onclick="deleteFamily('${k}')">🗑</button></td>
+    </tr>`;
+  }).join("");
+}
+
+function deleteFamily(tag) {
+  if (!confirm(`Remove the ${families[tag].name} family (tag #${tag})?`)) return;
+  delete families[tag];
+  overrides.deleted = [...(overrides.deleted || []), tag];
+  delete (overrides.added || {})[tag];
+  saveOverrides();
+  renderManage();
+}
+
+function addPending() {
+  const i = pendingStudents.length;
+  pendingStudents.push({ name: "", grade: "" });
+  const row = document.createElement("div");
+  row.className = "prow";
+  row.innerHTML = `
+    <input type="text" placeholder="Student name" oninput="pendingStudents[${i}].name=this.value" />
+    <input type="text" placeholder="Grade" oninput="pendingStudents[${i}].grade=this.value" />
+    <button class="icon-x" onclick="removePending(${i})">✕</button>`;
+  document.getElementById("pending-students").appendChild(row);
+}
+
+function removePending(idx) {
+  pendingStudents.splice(idx, 1);
+  document.getElementById("pending-students").innerHTML = "";
+  const copy = [...pendingStudents];
+  pendingStudents = [];
+  copy.forEach(s => {
+    const i = pendingStudents.length;
+    pendingStudents.push({ name: s.name, grade: s.grade });
+    const row = document.createElement("div");
+    row.className = "prow";
+    row.innerHTML = `
+      <input type="text" placeholder="Student name" value="${s.name}" oninput="pendingStudents[${i}].name=this.value" />
+      <input type="text" placeholder="Grade" value="${s.grade}" oninput="pendingStudents[${i}].grade=this.value" />
+      <button class="icon-x" onclick="removePending(${i})">✕</button>`;
+    document.getElementById("pending-students").appendChild(row);
+  });
+}
+
+function saveFamily() {
+  const tag = document.getElementById("new-tag").value.trim();
+  const name = document.getElementById("new-family").value.trim();
+  if (!tag || !name) { alert("Please enter a tag number and family last name."); return; }
+  if (families[tag]) { alert(`Tag #${tag} is already assigned to the ${families[tag].name} family.`); return; }
+  const students = pendingStudents.filter(s => s.name.trim());
+  families[tag] = { name, students };
+  overrides.added = overrides.added || {};
+  overrides.added[tag] = { name, students };
+  overrides.deleted = (overrides.deleted || []).filter(t => t !== tag);
+  saveOverrides();
+  document.getElementById("new-tag").value = "";
+  document.getElementById("new-family").value = "";
+  pendingStudents = [];
+  document.getElementById("pending-students").innerHTML = "";
+  const toast = document.getElementById("save-toast");
+  toast.classList.add("show");
+  setTimeout(() => toast.classList.remove("show"), 2000);
+  renderManage();
+}
+
+// ── Keyboard shortcut (F9 = manage families) ──────────────────────────────────
+document.addEventListener("keydown", function(e) {
+  if (e.key === "F9") { e.preventDefault(); toggleManage(); }
+});
+
+// ── Version check ─────────────────────────────────────────────────────────────
+const CURRENT_VERSION = "1.0.4";
+async function checkVersion() {
+  try {
+    const res = await fetch(window.location.href.split("?")[0] + "?nocache=" + Date.now(), { cache: "no-store" });
+    const html = await res.text();
+    const match = html.match(/name="app-version" content="([^"]+)"/);
+    if (match && match[1] !== CURRENT_VERSION) window.location.reload(true);
+  } catch(e) {}
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadSheet();
+setInterval(loadSheet, 5 * 60 * 1000);
+// Delay poll and version check until sheet has had time to load
+setTimeout(function() {
+  pollLive();
+  setInterval(pollLive, 4000);
+}, 3000);
+// Version check temporarily disabled for testing
+// setTimeout(function() {
+//   checkVersion();
+//   setInterval(checkVersion, 5 * 60 * 1000);
+// }, 2 * 60 * 1000);
+</script>
+
+
+<script>
+function updateClock() {
+  document.getElementById("live-clock").textContent = new Date().toLocaleTimeString([], {hour:"2-digit",minute:"2-digit",second:"2-digit"});
+}
+updateClock();
+setInterval(updateClock, 1000);
+</script>
+</body>
+</html>
