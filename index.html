@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="app-version" content="1.0.4" />
+  <meta name="app-version" content="1.0.5" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Woodland Elementary — Dismissal Lookup</title>
   <style>
@@ -613,7 +613,7 @@ document.addEventListener("keydown", function(e) {
 });
 
 // ── Version check ─────────────────────────────────────────────────────────────
-const CURRENT_VERSION = "1.0.4";
+const CURRENT_VERSION = "1.0.5";
 async function checkVersion() {
   try {
     const res = await fetch(window.location.href.split("?")[0] + "?nocache=" + Date.now(), { cache: "no-store" });
